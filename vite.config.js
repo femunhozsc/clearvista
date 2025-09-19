@@ -102,45 +102,6 @@ console.error = function(...args) {
 };
 `;
 
-const configWindowFetchMonkeyPatch = `
-const originalFetch = window.fetch;
-
-window.fetch = function(...args) {
-	const url = args[0] instanceof Request ? args[0].url : args[0];
-
-	// Skip WebSocket URLs
-	if (url.startsWith('ws:') || url.startsWith('wss:')) {
-		return originalFetch.apply(this, args);
-	}
-
-	return originalFetch.apply(this, args)
-		.then(async response => {
-			const contentType = response.headers.get('Content-Type') || '';
-
-			// Exclude HTML document responses
-			const isDocumentResponse =
-				contentType.includes('text/html') ||
-				contentType.includes('application/xhtml+xml');
-
-			if (!response.ok && !isDocumentResponse) {
-					const responseClone = response.clone();
-					const errorFromRes = await responseClone.text();
-					const requestUrl = response.url;
-					console.error(\`Fetch error from \${requestUrl}: \${errorFromRes}\`);
-			}
-
-			return response;
-		})
-		.catch(error => {
-			if (!url.match(/\.html?$/i)) {
-				console.error(error);
-			}
-
-			throw error;
-		});
-};
-`;
-
 const addTransformIndexHtml = {
 	name: 'add-transform-index-html',
 	transformIndexHtml(html) {
@@ -163,12 +124,6 @@ const addTransformIndexHtml = {
 					tag: 'script',
 					attrs: {type: 'module'},
 					children: configHorizonsConsoleErrroHandler,
-					injectTo: 'head',
-				},
-				{
-					tag: 'script',
-					attrs: { type: 'module' },
-					children: configWindowFetchMonkeyPatch,
 					injectTo: 'head',
 				},
 			],
